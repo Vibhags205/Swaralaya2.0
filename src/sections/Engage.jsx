@@ -9,9 +9,12 @@ export default function Engage() {
       return;
     }
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      // Prefer an explicit VITE API URL (for production). Otherwise use a
+      // relative `/api` path so the browser calls the same origin. During
+      // development Vite can proxy `/api` to the backend (see vite.config.js).
+      const API_BASE = import.meta.env.VITE_API_URL || "";
 
-      const res = await fetch(`${API_URL}/api/subscribe`, {
+      const res = await fetch(`${API_BASE}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
