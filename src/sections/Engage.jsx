@@ -1,10 +1,7 @@
-// Engage.jsx (Modified Code)
+// Engage.jsx (located at MUSIC/src/sections/Engage.jsx)
 
 import React, { useState } from 'react';
-
-// 🚨 Define the FormSubmit endpoint here
-// REPLACE 'your-owner-email@example.com' with the email you want the notification sent to.
-const FORMSUBMIT_URL = "https://formsubmit.co/ajax/gsvibha26@gmail.com";
+// ... other imports
 
 export default function Engage() {
   const [email, setEmail] = useState("");
@@ -14,45 +11,33 @@ export default function Engage() {
       alert("Please enter an email.");
       return;
     }
-
+    
+    // 🚨 SIMPLIFIED API CALL: Use the relative path, Vite proxy handles the rest
     try {
-      // 1. Create a FormData object for FormSubmit
-      const formData = new FormData();
-      formData.append("email", email);
-      
-      // OPTIONAL: Add a custom subject for the email you receive
-      formData.append("_subject", "New Subscriber ID!");
-
-      // 2. Send the request directly to the FormSubmit API
-      const res = await fetch(FORMSUBMIT_URL, {
+      const res = await fetch('/api/subscribe', { 
         method: "POST",
-        body: formData, // FormSubmit uses FormData, not JSON
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      // FormSubmit's AJAX endpoint returns a JSON response
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data.success) {
-        alert("Subscribed Successfully! Thanks!");
+      if (res.ok) {
+        alert(data.message || "Subscribed Successfully!");
         setEmail("");
       } else {
-        // FormSubmit returns res.ok=true even on validation issues, but sets success: false.
-        alert(data.message || "Subscription failed.");
+        alert(data.message || "Subscription failed");
       }
     } catch (error) {
-      alert("Network error: Could not reach subscription service.");
+      alert("Network Error: Ensure your Node.js server is running.");
       console.error(error);
     }
   };
 
-  // ... (rest of your return block is the same)
   return (
+    // ... (rest of your component is the same)
     <section className="engage card">
-      <h2>Engage With Me</h2>
-      <p>
-        If you love classical music or want to learn singing, you’re in the right place.
-        Subscribe, comment, and follow — let’s learn together step by step.
-      </p>
+      {/* ... */}
       <div className="engage-actions">
         <input
           placeholder="Your email"

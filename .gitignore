@@ -1,2 +1,6 @@
 # Node.js dependencies
 node_modules/
+
+# Local backend secrets
+backend/.env
+backend/serviceAccountKey.json
