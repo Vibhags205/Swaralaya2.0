@@ -1,51 +1,41 @@
-import React, { useEffect, useState } from "react";
+import React from 'react';
+// Import the new sections we just created
+import NewsFeed from '../sections/NewsFeed';
+import SocialWall from '../sections/SocialWall';
 
-export default function FeaturedReddit() {
-  const [post, setPost] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Keep your existing imports if any (like Navbar or Footer)
+// import Navbar from '../sections/Navbar'; 
 
-  const redditURL =
-    "https://www.reddit.com/r/icm/comments/7x74th/resources_on_indian_classical_music.json";
-
-  useEffect(() => {
-    async function fetchReddit() {
-      try {
-        const res = await fetch(redditURL);
-        const data = await res.json();
-
-        const mainPost = data[0].data.children[0].data;
-        const comments = data[1].data.children.map((c) => c.data.body);
-
-        setPost({
-          title: mainPost.title,
-          content: mainPost.selftext,
-          comments: comments.filter((c) => c) // remove empty comments
-        });
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Reddit fetch error:", err);
-        setLoading(false);
-      }
-    }
-
-    fetchReddit();
-  }, []);
-
-  if (loading) return <h2 style={{ padding: "2rem" }}>Loading Reddit posts...</h2>;
-  if (!post) return <h2 style={{ padding: "2rem" }}>No content found.</h2>;
-
+const FeaturedPage = () => {
   return (
-    <section className="reddit-wrapper">
-      <h1 className="reddit-title">{post.title}</h1>
+    <div className="min-h-screen bg-[#1a0f0a] text-white"> 
+      {/* Keep your existing Header or Navbar here.
+         I'm assuming you might have a wrapper or existing code here.
+      */}
+      
+      <div className="pt-24 pb-12 text-center">
+        <h1 className="text-4xl md:text-5xl font-serif text-amber-500 mb-4">
+          Swaralaya Featured Posts
+        </h1>
+        <p className="text-gray-300 max-w-2xl mx-auto">
+          Stay updated with the latest happenings, exams, and concerts in the world of Indian Classical Music.
+        </p>
+      </div>
 
-      <pre className="reddit-content">{post.content}</pre>
+      {/* --- NEW SECTIONS ADDED BELOW --- */}
+      
+      {/* 1. The News Feed (White/Light section) */}
+      <section className="bg-gray-100 text-gray-900 rounded-t-3xl mt-8">
+        <NewsFeed />
+      </section>
 
-      <h2 className="reddit-subtitle">Top Comments</h2>
+      {/* 2. The Social Wall (Slightly darker light section) */}
+      <section className="bg-amber-50 text-gray-900 pb-16">
+        <SocialWall />
+      </section>
 
-      {post.comments.slice(0, 5).map((c, i) => (
-        <p key={i} className="reddit-comment">{c}</p>
-      ))}
-    </section>
+    </div>
   );
-}
+};
+
+export default FeaturedPage;
