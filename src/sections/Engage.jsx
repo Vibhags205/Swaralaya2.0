@@ -12,9 +12,12 @@ export default function Engage() {
       return;
     }
     
-    // 🚨 SIMPLIFIED API CALL: Use the relative path, Vite proxy handles the rest
+    // Use VITE_API_URL for production (Vercel), or relative /api for local dev proxy
+    const apiBase = import.meta.env.VITE_API_URL || '';
+    const apiUrl = apiBase ? `${apiBase}/api/subscribe` : '/api/subscribe';
+    
     try {
-      const res = await fetch('/api/subscribe', { 
+      const res = await fetch(apiUrl, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
