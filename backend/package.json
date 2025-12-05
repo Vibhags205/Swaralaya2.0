@@ -1,0 +1,16 @@
+{
+  "name": "swaralaya-backend",
+  "version": "1.0.0",
+  "description": "Backend for Swaralaya music app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "firebase-admin": "^11.8.0",
+    "dotenv": "^16.0.3"
+  }
+}
