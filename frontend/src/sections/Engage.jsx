@@ -12,7 +12,8 @@ export default function Engage() {
     }
 
     // Always point to Render backend API
-    const apiUrl = "https://swaralaya-123.onrender.com/api/subscribe";
+    const apiUrl = "https://swaralaya-1234.onrender.com/api/subscribe";
+
 
     try {
       const res = await fetch(apiUrl, { 
