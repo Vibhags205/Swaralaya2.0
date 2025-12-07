@@ -33,6 +33,3 @@ export default function Hero() {
     </section>
   );
 }
-<button className="hero-btn">
-  <Link to="/Featured">Explore Featured Posts</Link>
-</button>

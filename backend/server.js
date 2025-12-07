@@ -2,12 +2,35 @@
 
 const express = require('express');
 const cors = require('cors');
-const admin = require('firebase-admin');   // ✅ IMPORTANT: this line fixes the error
+const admin = require('firebase-admin');
+const Parser = require('rss-parser');
 require('dotenv').config();
 
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 3000;  // Render uses process.env.PORT
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URLS = process.env.CLIENT_URLS || '';
+const ALLOWED_ORIGINS = [
+    CLIENT_URL,
+    ...CLIENT_URLS.split(',').map(s => s.trim()).filter(Boolean),
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174'
+];
+const NEWS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const NEWS_FEEDS = [
+    'https://www.thehindu.com/entertainment/music/feeder/default.rss',
+    'https://indianexpress.com/section/lifestyle/art-and-culture/feed/',
+    'http://srutimag.blogspot.com/feeds/posts/default?alt=rss'
+];
+
+const rssParser = new Parser({
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+});
+let newsCache = { items: [], expiresAt: 0 };
 
 let db;
 let app = express();
@@ -38,8 +61,48 @@ admin.initializeApp({
 db = admin.firestore();
 
 // --- MIDDLEWARES ---
-app.use(cors({ origin: CLIENT_URL }));
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // allow tools without origin
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+    }
+}));
 app.use(express.json());
+
+// Fetch and cache news items from RSS feeds
+async function loadNewsItems() {
+    const now = Date.now();
+    if (newsCache.items.length && newsCache.expiresAt > now) {
+        return newsCache.items;
+    }
+
+    try {
+        const feeds = await Promise.all(
+            NEWS_FEEDS.map(url => rssParser.parseURL(url))
+        );
+
+        const combined = feeds
+            .flatMap(feed => feed.items || [])
+            .map(item => ({
+                title: item.title || 'Untitled',
+                link: item.link,
+                pubDate: item.pubDate || item.isoDate || null,
+                contentSnippet: item.contentSnippet || '',
+            }))
+            .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
+            .slice(0, 6);
+
+        newsCache = { items: combined, expiresAt: now + NEWS_CACHE_TTL_MS };
+        return combined;
+    } catch (err) {
+        console.error('Error fetching RSS feeds:', err.message);
+        if (newsCache.items.length) {
+            return newsCache.items; // serve stale cache on error
+        }
+        return [];
+    }
+}
 
 // --- SUBSCRIBE ENDPOINT ---
 app.post('/api/subscribe', async (req, res) => {
@@ -64,6 +127,12 @@ app.post('/api/subscribe', async (req, res) => {
         console.error("FIREBASE WRITE ERROR:", error.message);
         res.status(500).json({ message: "Subscription failed due to server error (check Firebase logs)." });
     }
+});
+
+// News endpoint backed by cached RSS fetch
+app.get('/api/news', async (_req, res) => {
+    const items = await loadNewsItems();
+    res.json({ items });
 });
 
 // --- START THE SERVER ---

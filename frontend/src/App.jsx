@@ -5,8 +5,6 @@ import About from './pages/About'
 import Post from './pages/Post'
 import FeaturedReddit from "./pages/FeaturedReddit";
 
-<Route path="/Featured" element={<FeaturedReddit />} />
-
 
 export default function App() {
 return (
@@ -18,6 +16,7 @@ return (
 <nav className="nav">
 <Link to="/">Home</Link>
 <Link to="/about">About</Link>
+<Link to="/featured">Featured</Link>
 </nav>
 </header>
 
@@ -27,6 +26,7 @@ return (
 <Route path="/" element={<Home />} />
 <Route path="/about" element={<About />} />
 <Route path="/post/:slug" element={<Post />} />
+<Route path="/featured" element={<FeaturedReddit />} />
 </Routes>
 </main>
 

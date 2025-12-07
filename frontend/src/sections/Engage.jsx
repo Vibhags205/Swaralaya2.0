@@ -11,8 +11,8 @@ export default function Engage() {
       return;
     }
 
-    // Always point to Render backend API
-    const apiUrl = "https://swaralaya-1234.onrender.com/api/subscribe";
+    const apiBase = import.meta.env.VITE_API_URL || "";
+    const apiUrl = apiBase ? `${apiBase}/api/subscribe` : "/api/subscribe";
 
 
     try {
