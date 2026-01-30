@@ -1,7 +1,6 @@
-// Engage.jsx (located at MUSIC/src/sections/Engage.jsx)
+// Engage.jsx
 
 import React, { useState } from 'react';
-// ... other imports
 
 export default function Engage() {
   const [email, setEmail] = useState("");
@@ -11,11 +10,10 @@ export default function Engage() {
       alert("Please enter an email.");
       return;
     }
-    
-    // Use VITE_API_URL for production (Vercel), or relative /api for local dev proxy
-    const apiBase = import.meta.env.VITE_API_URL || '';
-    const apiUrl = apiBase ? `${apiBase}/api/subscribe` : '/api/subscribe';
-    
+
+    // ✅ Always point to your Render backend
+    const apiUrl = "https://swaralaya-1234.onrender.com/api/subscribe";
+
     try {
       const res = await fetch(apiUrl, { 
         method: "POST",
@@ -32,15 +30,13 @@ export default function Engage() {
         alert(data.message || "Subscription failed");
       }
     } catch (error) {
-      alert("Network Error: Ensure your Node.js server is running.");
+      alert("Network Error. Try again later.");
       console.error(error);
     }
   };
 
   return (
-    // ... (rest of your component is the same)
     <section className="engage card">
-      {/* ... */}
       <div className="engage-actions">
         <input
           placeholder="Your email"
@@ -48,7 +44,9 @@ export default function Engage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <button className="btn" onClick={handleSubscribe}>Subscribe</button>
+        <button className="btn" onClick={handleSubscribe}>
+          Subscribe
+        </button>
       </div>
     </section>
   );
