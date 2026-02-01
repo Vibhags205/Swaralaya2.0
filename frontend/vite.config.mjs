@@ -12,8 +12,8 @@ export default defineConfig({ // <-- Changed 'module.exports =' to 'export defau
         proxy: {
             // Any request starting with /api will be sent to the backend server
             '/api': {
-                // Should be 3000, matching your .env file
-                target: 'http://localhost:3000', 
+                // Match the backend local port
+                target: 'http://localhost:5000', 
                 changeOrigin: true,
                 secure: false,
             },

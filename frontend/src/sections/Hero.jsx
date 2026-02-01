@@ -1,29 +1,32 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
+import { useLanguage } from "../context/LanguageContext";
+
 export default function Hero() {
+  const { text } = useLanguage();
+
   return (
     <section className="hero">
       <div className="hero-overlay">
         <div className="hero-content container">
 
-          <h1>SWARALAYA: A Space for Classical Music Learners & Music Lovers</h1>
+          <h1 className="hero-title">
+            {text.hero.title}
+          </h1>
 
           <p className="subtitle">
-            Indian classical music, vocal techniques, raga basics, practice routines,
-            and my musical journey — all in one place.
+            {text.hero.subtitle}
           </p>
 
           <div className="hero-cta">
-            
-            {/* Explore Featured Posts → opens Reddit page */}
+
             <Link to="/featured" className="btn">
-              Explore Featured Posts
+              {text.hero.explore}
             </Link>
 
-            {/* About Me page */}
             <Link to="/about" className="btn ghost">
-              About Me
+              {text.hero.about}
             </Link>
 
           </div>

@@ -1,26 +1,29 @@
-import React from 'react'
+import React from "react";
+import { useLanguage } from "../context/LanguageContext";
 
+export default function WhatOffers() {
 
-const items = [
-  { text: '1. Ragas — decoded, not complicated' },
-  { text: '2. Sing smarter, not harder' },
-  { text: '3. Theory that finally makes sense' },
-  { text: '4. The story behind the music' },
-  { text: '5. Practice that transforms' },
-  { text: '6. My musical journey — raw & real' }
-];
+  // ✅ Hook must be INSIDE component
+  const { text } = useLanguage();
 
+  // Safety check (prevents blank screen)
+  if (!text?.homeExtras) return null;
 
+  return (
+    <section className="what-offers card">
 
-export default function WhatOffers(){
-return (
-<section className="what-offers card">
-<h2>ON THIS BLOG YOU WILL FIND: </h2>
-<ul>
-{items.map((i,idx)=> (
-<li key={idx}><span className="emoji">{i.emoji}</span>{i.text}</li>
-))}
-</ul>
-</section>
-)
+      {/* Title */}
+      <h2>{text.homeExtras.blogFindTitle}</h2>
+
+      {/* List */}
+      <ul>
+        {text.homeExtras.blogFindList.map((item, idx) => (
+          <li key={idx}>
+            {idx + 1}. {item}
+          </li>
+        ))}
+      </ul>
+
+    </section>
+  );
 }

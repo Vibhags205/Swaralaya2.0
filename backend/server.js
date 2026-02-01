@@ -1,157 +1,179 @@
-// server.js
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+import admin from "firebase-admin";
+import fs from "fs";
+import path from "path";
 
-const express = require('express');
-const cors = require('cors');
-const admin = require('firebase-admin');
-const Parser = require('rss-parser');
-require('dotenv').config();
+dotenv.config();
 
-// --- CONFIGURATION ---
-const PORT = process.env.PORT || 3000;  // Render uses process.env.PORT
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-const CLIENT_URLS = process.env.CLIENT_URLS || '';
-const ALLOWED_ORIGINS = [
-    CLIENT_URL,
-    ...CLIENT_URLS.split(',').map(s => s.trim()).filter(Boolean),
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174'
-];
-const NEWS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const NEWS_FEEDS = [
-    'https://www.thehindu.com/entertainment/music/feeder/default.rss',
-    'https://indianexpress.com/section/lifestyle/art-and-culture/feed/',
-    'http://srutimag.blogspot.com/feeds/posts/default?alt=rss'
-];
+const app = express();
+const port = process.env.PORT || process.env.BACKEND_PORT || 5000;
 
-const rssParser = new Parser({
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
+// Middleware
+app.use(cors());
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
 });
-let newsCache = { items: [], expiresAt: 0 };
-
-let db;
-let app = express();
-
-// --- LOAD FIREBASE CREDENTIALS FROM ENV VAR ---
-const serviceAccountJson = process.env.SERVICE_ACCOUNT_JSON;
-
-if (!serviceAccountJson) {
-    console.error("🚨 SERVICE_ACCOUNT_JSON environment variable missing!");
-    process.exit(1);
-}
-
-let serviceAccount;
-try {
-    serviceAccount = JSON.parse(serviceAccountJson);
-    console.log("✅ Loaded Firebase credentials from SERVICE_ACCOUNT_JSON");
-} catch (err) {
-    console.error("🚨 Failed to parse SERVICE_ACCOUNT_JSON");
-    console.error(err);
-    process.exit(1);
-}
-
-// --- INITIALIZE FIREBASE ---
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
-
-db = admin.firestore();
-
-// --- MIDDLEWARES ---
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin) return callback(null, true); // allow tools without origin
-        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-        return callback(new Error('Not allowed by CORS'));
-    }
-}));
 app.use(express.json());
 
-// Fetch and cache news items from RSS feeds
-async function loadNewsItems() {
-    const now = Date.now();
-    if (newsCache.items.length && newsCache.expiresAt > now) {
-        return newsCache.items;
+// Firebase Admin setup
+let firebaseReady = false;
+try {
+  if (!admin.apps.length) {
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+    const serviceAccountPath = process.env.SERVICE_ACCOUNT_PATH;
+
+    let serviceAccount;
+    if (serviceAccountJson) {
+      serviceAccount = JSON.parse(serviceAccountJson);
+    } else if (serviceAccountPath) {
+      const resolvedPath = path.isAbsolute(serviceAccountPath)
+        ? serviceAccountPath
+        : path.resolve(process.cwd(), serviceAccountPath);
+      const raw = fs.readFileSync(resolvedPath, "utf8");
+      serviceAccount = JSON.parse(raw);
     }
 
-    try {
-        const feeds = await Promise.all(
-            NEWS_FEEDS.map(url => rssParser.parseURL(url))
-        );
-
-        const combined = feeds
-            .flatMap(feed => feed.items || [])
-            .map(item => ({
-                title: item.title || 'Untitled',
-                link: item.link,
-                pubDate: item.pubDate || item.isoDate || null,
-                contentSnippet: item.contentSnippet || '',
-            }))
-            .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
-            .slice(0, 6);
-
-        newsCache = { items: combined, expiresAt: now + NEWS_CACHE_TTL_MS };
-        return combined;
-    } catch (err) {
-        console.error('Error fetching RSS feeds:', err.message);
-        if (newsCache.items.length) {
-            return newsCache.items; // serve stale cache on error
-        }
-        return [];
+    if (serviceAccount) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      firebaseReady = true;
+      console.log("Firebase Admin initialized");
+    } else {
+      console.warn("Firebase service account not configured");
     }
+  } else {
+    firebaseReady = true;
+  }
+} catch (err) {
+  console.error("Firebase init error:", err.message);
 }
 
-// --- SUBSCRIBE ENDPOINT ---
-// --- SUBSCRIBE ENDPOINT ---
-app.post('/api/subscribe', async (req, res) => {
+// Groq setup (using OpenAI SDK with Groq base URL)
+console.log("API_KEY loaded:", process.env.OPENAI_API_KEY ? "Yes" : "No");
+let client;
+try {
+  client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1",
+  });
+  console.log("Groq client initialized successfully");
+} catch (err) {
+  console.error("Error initializing client:", err.message);
+}
+
+// Test route
+app.get("/", (req, res) => {
+  res.send("AI Server Running");
+});
+
+// Test API
+app.get("/api/test", (req, res) => {
+  res.json({ status: "Server is working" });
+});
+
+// Subscribe route (Firebase)
+app.post("/api/subscribe", async (req, res) => {
+  try {
     const { email } = req.body;
 
-    console.log("🔔 /api/subscribe called with body:", req.body);
-
-    if (!email || !email.includes('@')) {
-        console.log("⚠️ Invalid email:", email);
-        return res.status(400).json({ message: "A valid email is required." });
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ message: "Email is required" });
     }
 
-    try {
-        const newSubscriber = {
-            email: email,
-            subscribedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-
-        await db.collection('subscribers').doc(email).set(newSubscriber);
-
-        console.log(`🎉 FIREBASE WRITE SUCCESS for: ${email}`);
-        return res
-            .status(200)
-            .json({ message: "Subscribed Successfully! Thanks for joining." });
-
-    } catch (error) {
-        console.error("🔥 FIREBASE WRITE ERROR:", error);
-        return res
-            .status(500)
-            .json({ message: "Subscription failed due to server error (check Firebase logs)." });
+    const normalized = email.trim().toLowerCase();
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+    if (!isValid) {
+      return res.status(400).json({ message: "Invalid email address" });
     }
-});
-// --- DEBUG: LIST ALL SUBSCRIBERS ---
-app.get('/api/debug-subscribers', async (_req, res) => {
-    try {
-        const snapshot = await db.collection('subscribers').get();
-        const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log("📋 DEBUG subscribers:", subs);
-        res.json({ subscribers: subs });
-    } catch (err) {
-        console.error("🔥 ERROR READING SUBSCRIBERS:", err);
-        res.status(500).json({ message: "Failed to read subscribers" });
+
+    if (!firebaseReady) {
+      return res.status(500).json({ message: "Server is not configured" });
     }
+
+    const db = admin.firestore();
+    await db
+      .collection("subscribers")
+      .doc(normalized)
+      .set(
+        {
+          email: normalized,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+    return res.json({ message: "Subscribed successfully" });
+  } catch (error) {
+    console.error("Subscribe error:", error.message);
+    return res.status(500).json({ message: "Subscription failed" });
+  }
 });
 
+// Chat route
+app.post("/api/chat", async (req, res) => {
+  try {
+    console.log("Chat request received:", req.body);
+    const { message } = req.body;
 
-// --- START THE SERVER ---
-app.listen(PORT, () => {
-    console.log(`\n🚀 Backend Server running on port ${PORT}`);
-    console.log(`🌐 Allowing CORS from: ${CLIENT_URL}`);
+    if (!message) {
+      console.log("No message in request");
+      return res.status(400).json({ reply: "No message sent" });
+    }
+
+    if (!client) {
+      console.error("OpenAI client not initialized");
+      return res.status(500).json({ reply: "Server configuration error" });
+    }
+
+    console.log("Sending to Groq:", message);
+    const response = await client.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert Indian classical music teacher. Answer clearly and simply.",
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+    });
+
+    console.log("Groq response received");
+    const reply = response.choices[0].message.content;
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("AI Error:", error.message);
+    console.error("Full error:", error);
+    res.status(500).json({ reply: "AI Error" });
+  }
+});
+
+// Global error handler for unhandled rejections
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+// Global error handler for uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+
+// Start server
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running at http://localhost:${port}`);
+  console.log("Server is listening...");
+});
+
+// Handle server errors
+server.on("error", (err) => {
+  console.error("Server error:", err);
 });
