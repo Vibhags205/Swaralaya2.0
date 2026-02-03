@@ -1,7 +1,7 @@
 
 #  Swaralaya – Indian Classical Music Learning Platform
 
-Swaralaya 2.0 is a full-stack web application designed for Indian classical music learners and enthusiasts.  
+Swaralaya is a full-stack web application designed for Indian classical music learners and enthusiasts.  
 It provides learning resources, raga exploration, instrument audio samples, and an AI-powered music assistant.
 
 The platform supports both **English and Kannada** languages.
